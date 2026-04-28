@@ -33,8 +33,8 @@ pipeline {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.11 "
                 cd /home/ubuntu &&
-                docker compose pull &&
-                docker compose up -d --remove-orphans
+                docker-compose pull &&
+                docker-compose up -d --remove-orphans
                 "
                 '''
             }
@@ -45,8 +45,8 @@ pipeline {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.12 "
                 cd /home/ubuntu &&
-                docker compose pull &&
-                docker compose up -d --remove-orphans
+                docker-compose pull &&
+                docker-compose up -d --remove-orphans
                 "
                 '''
             }
