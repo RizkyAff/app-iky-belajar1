@@ -32,6 +32,7 @@ pipeline {
             steps {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.11 "
+                docker rm -f app || true &&
                 cd /home/ubuntu/dckr11 &&
                 docker-compose pull &&
                 docker-compose up -d --remove-orphans
@@ -44,6 +45,7 @@ pipeline {
             steps {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.12 "
+                docker rm -f app || true &&
                 cd /home/ubuntu/dckr12 &&
                 docker-compose pull &&
                 docker-compose up -d --remove-orphans
