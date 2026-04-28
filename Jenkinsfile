@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE = "app-iky:latest"
+        KEY = "/root/server-1.pem"
     }
 
     stages {
@@ -22,8 +23,9 @@ pipeline {
         stage('Deploy to VM1') {
             steps {
                 sh '''
-                scp app.tar ubuntu@10.0.1.11:/home/ubuntu/
-                ssh ubuntu@10.0.1.11 "
+                scp -i $KEY -o StrictHostKeyChecking=no app.tar ubuntu@10.0.1.11:/home/ubuntu/
+
+                ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.11 "
                 docker load < app.tar &&
                 docker stop app || true &&
                 docker rm app || true &&
@@ -36,8 +38,9 @@ pipeline {
         stage('Deploy to VM2') {
             steps {
                 sh '''
-                scp app.tar ubuntu@10.0.1.12:/home/ubuntu/
-                ssh ubuntu@10.0.1.12 "
+                scp -i $KEY -o StrictHostKeyChecking=no app.tar ubuntu@10.0.1.12:/home/ubuntu/
+
+                ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.12 "
                 docker load < app.tar &&
                 docker stop app || true &&
                 docker rm app || true &&
