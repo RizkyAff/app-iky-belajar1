@@ -39,6 +39,7 @@ pipeline {
             steps {
                 sh '''
                 scp -i $KEY -o StrictHostKeyChecking=no docker-compose.yml ubuntu@10.0.1.11:/home/ubuntu/dckr11/
+                scp -i $KEY -o StrictHostKeyChecking=no docker-compose.monitor.yml ubuntu@10.0.1.11:/home/ubuntu/dckr11/
                 scp -i $KEY -o StrictHostKeyChecking=no -r nginx ubuntu@10.0.1.11:/home/ubuntu/dckr11/
                 scp -i $KEY -o StrictHostKeyChecking=no -r monitoring ubuntu@10.0.1.11:/home/ubuntu/dckr11/
                 '''
@@ -58,10 +59,9 @@ pipeline {
             steps {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.11 "
-                docker rm -f app || true &&
                 cd /home/ubuntu/dckr11 &&
-                docker-compose pull &&
-                docker-compose up -d --remove-orphans
+                docker-compose pull || true &&
+                docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
                 "
                 '''
             }
@@ -71,9 +71,8 @@ pipeline {
             steps {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.12 "
-                docker rm -f app || true &&
                 cd /home/ubuntu/dckr12 &&
-                docker-compose pull &&
+                docker-compose pull || true &&
                 docker-compose up -d --remove-orphans
                 "
                 '''
