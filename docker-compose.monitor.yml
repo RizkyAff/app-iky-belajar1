@@ -1,0 +1,9 @@
+services:
+  prometheus:
+    image: 10.0.2.13:5000/prometheus:latest
+    container_name: prometheus-iky
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: always
