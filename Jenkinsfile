@@ -3,8 +3,9 @@ pipeline {
 
     environment {
         REGISTRY = "10.0.2.13:5000"
-        IMAGE = "app-iky:latest"
-        FULL_IMAGE = "${REGISTRY}/${IMAGE}"
+        IMAGE = "app-iky"
+        TAG = "${BUILD_NUMBER}"
+        FULL_IMAGE = "${REGISTRY}/${IMAGE}:${TAG}"
         KEY = "/root/server-1.pem"
     }
 
@@ -12,19 +13,44 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                sh 'docker build -t $IMAGE .'
+                sh 'docker build -t $IMAGE:$TAG .'
             }
         }
 
         stage('Tag Image') {
             steps {
-                sh 'docker tag $IMAGE $FULL_IMAGE'
+                sh '''
+                docker tag $IMAGE:$TAG $FULL_IMAGE
+                docker tag $IMAGE:$TAG $REGISTRY/$IMAGE:latest
+                '''
             }
         }
 
         stage('Push to Local Registry') {
             steps {
-                sh 'docker push $FULL_IMAGE'
+                sh '''
+                docker push $FULL_IMAGE
+                docker push $REGISTRY/$IMAGE:latest
+                '''
+            }
+        }
+
+        stage('Sync Config to VM1') {
+            steps {
+                sh '''
+                scp -i $KEY -o StrictHostKeyChecking=no docker-compose.yml ubuntu@10.0.1.11:/home/ubuntu/dckr11/
+                scp -i $KEY -o StrictHostKeyChecking=no -r nginx ubuntu@10.0.1.11:/home/ubuntu/dckr11/
+                scp -i $KEY -o StrictHostKeyChecking=no -r monitoring ubuntu@10.0.1.11:/home/ubuntu/dckr11/
+                '''
+            }
+        }
+
+        stage('Sync Config to VM2') {
+            steps {
+                sh '''
+                scp -i $KEY -o StrictHostKeyChecking=no docker-compose.yml ubuntu@10.0.1.12:/home/ubuntu/dckr12/
+                scp -i $KEY -o StrictHostKeyChecking=no -r nginx ubuntu@10.0.1.12:/home/ubuntu/dckr12/
+                '''
             }
         }
 
@@ -33,7 +59,6 @@ pipeline {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.11 "
                 docker rm -f app || true &&
-                docker system prune -af &&
                 cd /home/ubuntu/dckr11 &&
                 docker-compose pull &&
                 docker-compose up -d --remove-orphans
@@ -47,7 +72,6 @@ pipeline {
                 sh '''
                 ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@10.0.1.12 "
                 docker rm -f app || true &&
-                docker system prune -af &&
                 cd /home/ubuntu/dckr12 &&
                 docker-compose pull &&
                 docker-compose up -d --remove-orphans
