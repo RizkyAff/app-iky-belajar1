@@ -1,13 +1,13 @@
 services:
   app:
-    build: .
-    container_name: app-iky
+    image: 10.0.2.13:5000/app-iky:latest
+    container_name: app
     restart: always
     ports:
       - "3000:3000"
 
   nginx:
-    image: nginx:latest
+    image: 10.0.2.13:5000/nginx:latest
     container_name: nginx-iky
     restart: always
     ports:
@@ -18,15 +18,16 @@ services:
       - app
 
   prometheus:
-    image: prom/prometheus
+    image: 10.0.2.13:5000/prometheus:latest
     container_name: prometheus-iky
     ports:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
     restart: always
+
   node-exporter:
-    image: prom/node-exporter
+    image: 10.0.2.13:5000/node-exporter:latest
     container_name: node-exporter-iky
     ports:
       - "9100:9100"
