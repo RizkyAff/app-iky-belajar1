@@ -43,12 +43,13 @@ stages {
 
                 for (srv in servers) {
 
-                    // FIX PATH docker-compose
+                    // docker-compose (FIX path)
                     sh """
                     scp -i $KEY -o StrictHostKeyChecking=no docker/docker-compose.yml ubuntu@${srv.ip}:${srv.path}/
                     scp -i $KEY -o StrictHostKeyChecking=no -r nginx ubuntu@${srv.ip}:${srv.path}/
                     """
 
+                    // monitoring hanya untuk VM1
                     if (srv.monitoring) {
                         sh """
                         scp -i $KEY -o StrictHostKeyChecking=no monitoring/docker-compose.monitor.yml ubuntu@${srv.ip}:${srv.path}/
@@ -69,6 +70,7 @@ stages {
                 ]
 
                 for (srv in servers) {
+
                     if (srv.monitoring) {
                         sh """
                         ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} "
