@@ -41,10 +41,10 @@ stages {
 
                 for (srv in servers) {
 
-                    // COPY docker-compose + nginx
+                    // COPY docker-compose + proxy
                     sh """
                     scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/docker/docker-compose.yml ubuntu@${srv.ip}:${srv.path}/
-                    scp -i $KEY -o StrictHostKeyChecking=no -r ${WORKSPACE}/nginx ubuntu@${srv.ip}:${srv.path}/
+                    scp -i $KEY -o StrictHostKeyChecking=no -r ${WORKSPACE}/proxy ubuntu@${srv.ip}:${srv.path}/
                     """
 
                     // COPY monitoring hanya ke VM1
