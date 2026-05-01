@@ -40,7 +40,6 @@ stages {
                 ]
 
                 for (srv in servers) {
-
                     sh """
                     scp -i $KEY -o StrictHostKeyChecking=no docker/docker-compose.yml ubuntu@${srv.ip}:${srv.path}/
                     scp -i $KEY -o StrictHostKeyChecking=no -r nginx ubuntu@${srv.ip}:${srv.path}/
@@ -84,8 +83,13 @@ stages {
                         "
                         """
                     }
+
                 }
             }
         }
     }
+
+}
+
+
 }
