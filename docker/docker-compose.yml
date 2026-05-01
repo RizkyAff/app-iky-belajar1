@@ -1,7 +1,9 @@
+version: '3'
+
 services:
   app:
-    image: 10.0.2.13:5000/app-iky:latest
-    container_name: app
+    image: 10.0.2.13:5000/app-rizky:latest
+    container_name: app-rizky
     restart: always
     ports:
       - "3000:3000"

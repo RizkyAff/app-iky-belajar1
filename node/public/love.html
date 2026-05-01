@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Untuk Kamu ❤️</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="romantic">
+
+  <div class="container">
+    <h1>Untuk Kamu ❤️</h1>
+    <p class="subtitle">Seseorang yang selalu ada di hati</p>
+
+    <div class="gallery">
+      <img src="/images/foto1.JPG">
+      <img src="/images/foto2.JPG">
+    </div>
+
+    <div class="message">
+      <p>
+        Aku tidak butuh dunia yang besar,<br>
+        cukup kamu di dalamnya,muaachhhh ❤️
+      </p>
+    </div>
+
+    <button onclick="loveEffect()">Klik untuk kejutan 💌</button>
+  </div>
+
+  <script>
+    function loveEffect() {
+      for (let i = 0; i < 20; i++) {
+        let heart = document.createElement('div');
+        heart.innerHTML = '❤️';
+        heart.className = 'heart';
+        heart.style.left = Math.random() * 100 + 'vw';
+        heart.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        document.body.appendChild(heart);
+
+        setTimeout(() => heart.remove(), 4000);
+      }
+    }
+  </script>
+
+</body>
+</html>

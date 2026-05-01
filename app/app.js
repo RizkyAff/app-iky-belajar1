@@ -1,10 +1,14 @@
-const http = require("http");
-const os = require("os");
+const express = require('express');
+const path = require('path');
 
-const server = http.createServer((req, res) => {
-  res.end("Hello from " + os.hostname());
+const app = express();
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-server.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(3000, '0.0.0.0', () => {
+  console.log('App Rizky running on port 3000');
 });
