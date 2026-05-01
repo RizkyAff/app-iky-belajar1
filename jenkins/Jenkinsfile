@@ -15,7 +15,7 @@ pipeline {
 
     stages {
 
-        stage('Clone Repo') {
+        stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/RizkyAff/app-iky-belajar1.git'
             }
@@ -29,9 +29,7 @@ pipeline {
 
         stage('Push Image') {
             steps {
-                sh """
-                docker push ${FULL_IMAGE}
-                """
+                sh "docker push ${FULL_IMAGE}"
             }
         }
 
@@ -45,24 +43,32 @@ pipeline {
 
                     for (srv in servers) {
 
-                        // disable dari HAProxy
+                        echo "===== DEPLOY ${srv.name} ====="
+
+                        // 🔴 Disable HAProxy
                         sh """
                         ssh -i $KEY ubuntu@${VM_HA} \
                         "echo 'disable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                         """
 
-                        // deploy
+                        // 🔥 SYNC CONFIG (INI YANG SEBELUMNYA KURANG)
+                        sh """
+                        scp -i $KEY docker/docker-compose.yml ubuntu@${srv.ip}:${srv.path}/docker-compose.yml
+                        """
+
+                        // 🔥 DEPLOY FULL CLEAN
                         sh """
                         ssh -i $KEY ubuntu@${srv.ip} "
                         cd ${srv.path} &&
+                        docker-compose down &&
                         docker-compose pull &&
-                        docker-compose up -d
+                        docker-compose up -d --remove-orphans
                         "
                         """
 
                         sleep 10
 
-                        // enable lagi
+                        // 🟢 Enable HAProxy lagi
                         sh """
                         ssh -i $KEY ubuntu@${VM_HA} \
                         "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
