@@ -1,3 +1,6 @@
+pipeline {
+agent any
+
 environment {
     REGISTRY = "10.0.2.13:5000"
     IMAGE = "app-iky"
@@ -22,7 +25,6 @@ stages {
             sh '''
             docker tag $IMAGE:$TAG $FULL_IMAGE
             docker tag $IMAGE:$TAG $REGISTRY/$IMAGE:latest
-
             docker push $FULL_IMAGE
             docker push $REGISTRY/$IMAGE:latest
             '''
@@ -39,13 +41,11 @@ stages {
 
                 for (srv in servers) {
 
-                    // docker-compose (FIX path)
                     sh """
                     scp -i $KEY -o StrictHostKeyChecking=no docker/docker-compose.yml ubuntu@${srv.ip}:${srv.path}/
                     scp -i $KEY -o StrictHostKeyChecking=no -r nginx ubuntu@${srv.ip}:${srv.path}/
                     """
 
-                    // monitoring hanya untuk VM1
                     if (srv.monitoring) {
                         sh """
                         scp -i $KEY -o StrictHostKeyChecking=no monitoring/docker-compose.monitor.yml ubuntu@${srv.ip}:${srv.path}/
