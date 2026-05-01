@@ -42,7 +42,7 @@ stages {
 
                 for (srv in servers) {
 
-                    // pastikan folder proxy ada
+                    // ensure folder
                     sh """
                     ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} \
                     "mkdir -p ${srv.path}/proxy"
@@ -54,13 +54,13 @@ stages {
                     ubuntu@${srv.ip}:${srv.path}/
                     """
 
-                    // nginx config saja
+                    // nginx config
                     sh """
                     scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/proxy/nginx.conf \
                     ubuntu@${srv.ip}:${srv.path}/proxy/
                     """
 
-                    // monitoring hanya VM1
+                    // monitoring only VM1
                     if (srv.monitoring) {
                         sh """
                         scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/monitoring/docker-compose.monitor.yml \
@@ -85,14 +85,16 @@ stages {
 
                 for (srv in servers) {
 
+                    // 🔻 Disable from HAProxy
                     echo "=== Disable ${srv.name} from HAProxy ==="
                     sh """
                     ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${VM_HA} \
-                    "echo 'disable server app_servers/${srv.name}' | socat stdio /run/haproxy/admin.sock"
+                    "echo 'disable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                     """
 
                     sleep 5
 
+                    // 🚀 Deploy
                     echo "=== Deploy ${srv.name} ==="
                     if (srv.monitoring) {
                         sh """
@@ -113,10 +115,11 @@ stages {
 
                     sleep 5
 
+                    // 🔼 Enable back
                     echo "=== Enable ${srv.name} back ==="
                     sh """
                     ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${VM_HA} \
-                    "echo 'enable server app_servers/${srv.name}' | socat stdio /run/haproxy/admin.sock"
+                    "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                     """
 
                     sleep 5
