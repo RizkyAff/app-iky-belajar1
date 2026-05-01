@@ -40,15 +40,17 @@ stages {
                 ]
 
                 for (srv in servers) {
+
+                    // FIX PATH (pakai ./)
                     sh """
                     scp -i $KEY -o StrictHostKeyChecking=no docker/docker-compose.yml ubuntu@${srv.ip}:${srv.path}/
-                    scp -i $KEY -o StrictHostKeyChecking=no -r nginx ubuntu@${srv.ip}:${srv.path}/
+                    scp -i $KEY -o StrictHostKeyChecking=no -r ./nginx ubuntu@${srv.ip}:${srv.path}/
                     """
 
                     if (srv.monitoring) {
                         sh """
                         scp -i $KEY -o StrictHostKeyChecking=no monitoring/docker-compose.monitor.yml ubuntu@${srv.ip}:${srv.path}/
-                        scp -i $KEY -o StrictHostKeyChecking=no -r monitoring ubuntu@${srv.ip}:${srv.path}/
+                        scp -i $KEY -o StrictHostKeyChecking=no -r ./monitoring ubuntu@${srv.ip}:${srv.path}/
                         """
                     }
                 }
@@ -90,6 +92,5 @@ stages {
     }
 
 }
-
 
 }
