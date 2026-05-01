@@ -1,45 +1,64 @@
-stage('Deploy Zero Downtime') {
-steps {
-script {
-    
-        def servers = [
-            [name: "vm1", ip: VM1, path: "/home/ubuntu/dckr11", monitoring: true],
-            [name: "vm2", ip: VM2, path: "/home/ubuntu/dckr12", monitoring: false]
-        ]
+pipeline {
+agent any
 
-        for (srv in servers) {
+environment {
+    REGISTRY = "10.0.2.13:5000"
+    IMAGE = "app-iky"
+    TAG = "${BUILD_NUMBER}"
+    FULL_IMAGE = "${REGISTRY}/${IMAGE}:${TAG}"
+    KEY = "/root/server-1.pem"
 
-            echo "Disable ${srv.name}"
-            sh "echo 'disable server app_servers/${srv.name}' | socat stdio /run/haproxy/admin.sock"
+    VM1 = "10.0.1.11"
+    VM2 = "10.0.1.12"
+}
 
-            sleep(5)
+stages {
 
-            echo "Deploy ${srv.name}"
-            if (srv.monitoring) {
-                sh """
-                ssh -i $KEY ubuntu@${srv.ip} "
-                cd ${srv.path} &&
-                docker-compose pull || true &&
-                docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
-                "
-                """
-            } else {
-                sh """
-                ssh -i $KEY ubuntu@${srv.ip} "
-                cd ${srv.path} &&
-                docker-compose up -d --remove-orphans
-                "
-                """
+    stage('Deploy Zero Downtime') {
+        steps {
+            script {
+
+                def servers = [
+                    [name: "vm1", ip: VM1, path: "/home/ubuntu/dckr11", monitoring: true],
+                    [name: "vm2", ip: VM2, path: "/home/ubuntu/dckr12", monitoring: false]
+                ]
+
+                for (srv in servers) {
+
+                    echo "Disable ${srv.name}"
+                    sh "echo 'disable server app_servers/${srv.name}' | socat stdio /run/haproxy/admin.sock"
+
+                    sleep 5
+
+                    echo "Deploy ${srv.name}"
+                    if (srv.monitoring) {
+                        sh """
+                        ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} "
+                        cd ${srv.path} &&
+                        docker-compose pull || true &&
+                        docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
+                        "
+                        """
+                    } else {
+                        sh """
+                        ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} "
+                        cd ${srv.path} &&
+                        docker-compose up -d --remove-orphans
+                        "
+                        """
+                    }
+
+                    sleep 5
+
+                    echo "Enable ${srv.name}"
+                    sh "echo 'enable server app_servers/${srv.name}' | socat stdio /run/haproxy/admin.sock"
+
+                    sleep 5
+                }
             }
-
-            sleep(5)
-
-            echo "Enable ${srv.name}"
-            sh "echo 'enable server app_servers/${srv.name}' | socat stdio /run/haproxy/admin.sock"
-
-            sleep(5)
         }
     }
+
 }
 
 }
