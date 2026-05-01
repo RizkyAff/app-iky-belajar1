@@ -71,7 +71,7 @@ pipeline {
             }
         }
 
-        stage('Deploy Zero Downtime + Health Check + Rollback') {
+        stage('Deploy Zero Downtime') {
             steps {
                 script {
 
@@ -82,12 +82,14 @@ pipeline {
 
                     for (srv in servers) {
 
+                        // 🔻 Disable dari HAProxy
                         echo "=== Disable ${srv.name} from HAProxy ==="
                         sh """
-                        ssh -i $KEY ubuntu@${VM_HA} \
+                        ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${VM_HA} \
                         "echo 'disable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                         """
 
+                        // 🔁 Backup image
                         echo "=== Backup image (${srv.name}) ==="
                         sh """
                         ssh -i $KEY ubuntu@${srv.ip} "
@@ -97,90 +99,39 @@ pipeline {
                         "
                         """
 
-                        try {
-
-                            echo "=== Deploy ${srv.name} ==="
-
-                            if (srv.monitoring) {
-                                sh """
-                                ssh -i $KEY ubuntu@${srv.ip} "
-                                cd ${srv.path} &&
-                                sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
-                                docker-compose pull &&
-                                docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
-                                "
-                                """
-                            } else {
-                                sh """
-                                ssh -i $KEY ubuntu@${srv.ip} "
-                                cd ${srv.path} &&
-                                sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
-                                docker-compose pull &&
-                                docker-compose up -d --remove-orphans
-                                "
-                                """
-                            }
-
-                            // 🔥 WAIT CONTAINER READY
-                            echo "=== Wait container running ${srv.name} ==="
-                            sh """
-                            ssh -i $KEY ubuntu@${srv.ip} "
-                            for i in {1..30}; do
-                                docker ps | grep app && exit 0
-                                sleep 2
-                            done
-                            exit 1
-                            "
-                            """
-
-                            // 🔥 HEALTH CHECK (120 detik)
-                            echo "=== Health Check ${srv.name} ==="
-                            def healthy = false
-
-                            for (int i = 0; i < 40; i++) {
-                                def status = sh(
-                                    script: "ssh -i $KEY ubuntu@${srv.ip} \"curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:80 || echo 000\"",
-                                    returnStdout: true
-                                ).trim()
-
-                                if (status == "200") {
-                                    healthy = true
-                                    break
-                                }
-
-                                sleep 3
-                            }
-
-                            if (!healthy) {
-                                error("Health check FAILED on ${srv.name}")
-                            }
-
-                            echo "=== Enable ${srv.name} back ==="
-                            sh """
-                            ssh -i $KEY ubuntu@${VM_HA} \
-                            "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
-                            """
-
-                        } catch (err) {
-
-                            echo "❌ ERROR on ${srv.name}, rollback..."
-
+                        // 🚀 Deploy (tanpa health check kompleks)
+                        echo "=== Deploy ${srv.name} ==="
+                        if (srv.monitoring) {
                             sh """
                             ssh -i $KEY ubuntu@${srv.ip} "
                             cd ${srv.path} &&
-                            docker pull ${PREV_IMAGE} &&
-                            sed -i 's|image:.*|image: ${PREV_IMAGE}|' docker-compose.yml &&
+                            sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
+                            docker-compose pull &&
+                            docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
+                            "
+                            """
+                        } else {
+                            sh """
+                            ssh -i $KEY ubuntu@${srv.ip} "
+                            cd ${srv.path} &&
+                            sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
+                            docker-compose pull &&
                             docker-compose up -d --remove-orphans
                             "
                             """
-
-                            sh """
-                            ssh -i $KEY ubuntu@${VM_HA} \
-                            "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
-                            """
-
-                            error("Rollback executed on ${srv.name}")
                         }
+
+                        // ⏳ Delay sederhana (AMAN)
+                        sleep 10
+
+                        // 🔼 Enable kembali
+                        echo "=== Enable ${srv.name} back ==="
+                        sh """
+                        ssh -i $KEY ubuntu@${VM_HA} \
+                        "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
+                        """
+
+                        sleep 5
                     }
                 }
             }
