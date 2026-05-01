@@ -41,13 +41,11 @@ stages {
 
                 for (srv in servers) {
 
-                    // COPY docker-compose + proxy
                     sh """
                     scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/docker/docker-compose.yml ubuntu@${srv.ip}:${srv.path}/
                     scp -i $KEY -o StrictHostKeyChecking=no -r ${WORKSPACE}/proxy ubuntu@${srv.ip}:${srv.path}/
                     """
 
-                    // COPY monitoring hanya ke VM1
                     if (srv.monitoring) {
                         sh """
                         scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/monitoring/docker-compose.monitor.yml ubuntu@${srv.ip}:${srv.path}/
@@ -73,16 +71,16 @@ stages {
                         sh """
                         ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} "
                         cd ${srv.path} &&
-                        docker compose pull || true &&
-                        docker compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
+                        docker-compose pull || true &&
+                        docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
                         "
                         """
                     } else {
                         sh """
                         ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} "
                         cd ${srv.path} &&
-                        docker compose pull || true &&
-                        docker compose up -d --remove-orphans
+                        docker-compose pull || true &&
+                        docker-compose up -d --remove-orphans
                         "
                         """
                     }
