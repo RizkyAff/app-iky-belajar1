@@ -55,8 +55,8 @@ pipeline {
                         sh """
                         ssh -i $KEY ubuntu@${srv.ip} "
                         cd ${srv.path} &&
-                        docker compose pull &&
-                        docker compose up -d
+                        docker-compose pull &&
+                        docker-compose up -d
                         "
                         """
 
