@@ -84,12 +84,11 @@ pipeline {
 
                         echo "=== Disable ${srv.name} from HAProxy ==="
                         sh """
-                        ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${VM_HA} \
+                        ssh -i $KEY ubuntu@${VM_HA} \
                         "echo 'disable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                         """
 
-                        // ✅ Backup image (FIXED)
-                        echo "=== Backup current image (${srv.name}) ==="
+                        echo "=== Backup image (${srv.name}) ==="
                         sh """
                         ssh -i $KEY ubuntu@${srv.ip} "
                         docker pull ${REGISTRY}/${IMAGE}:latest &&
@@ -98,8 +97,9 @@ pipeline {
                         "
                         """
 
-                        echo "=== Deploy ${srv.name} ==="
                         try {
+
+                            echo "=== Deploy ${srv.name} ==="
 
                             if (srv.monitoring) {
                                 sh """
@@ -121,11 +121,23 @@ pipeline {
                                 """
                             }
 
-                            // ✅ HEALTH CHECK (FIXED)
+                            // 🔥 WAIT CONTAINER READY
+                            echo "=== Wait container running ${srv.name} ==="
+                            sh """
+                            ssh -i $KEY ubuntu@${srv.ip} "
+                            for i in {1..30}; do
+                                docker ps | grep app && exit 0
+                                sleep 2
+                            done
+                            exit 1
+                            "
+                            """
+
+                            // 🔥 HEALTH CHECK (120 detik)
                             echo "=== Health Check ${srv.name} ==="
                             def healthy = false
 
-                            for (int i = 0; i < 10; i++) {
+                            for (int i = 0; i < 40; i++) {
                                 def status = sh(
                                     script: "ssh -i $KEY ubuntu@${srv.ip} \"curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:80 || echo 000\"",
                                     returnStdout: true
@@ -151,9 +163,8 @@ pipeline {
 
                         } catch (err) {
 
-                            echo "❌ ERROR on ${srv.name}, starting rollback..."
+                            echo "❌ ERROR on ${srv.name}, rollback..."
 
-                            // ✅ ROLLBACK FIXED
                             sh """
                             ssh -i $KEY ubuntu@${srv.ip} "
                             cd ${srv.path} &&
