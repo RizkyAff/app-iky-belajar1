@@ -6,6 +6,7 @@ pipeline {
         IMAGE = "app-iky"
         TAG = "${BUILD_NUMBER}"
         FULL_IMAGE = "${REGISTRY}/${IMAGE}:${TAG}"
+        PREV_IMAGE = "${REGISTRY}/${IMAGE}:previous"
         KEY = "/root/server-1.pem"
 
         VM_HA = "10.0.2.13"
@@ -42,25 +43,21 @@ pipeline {
 
                     for (srv in servers) {
 
-                        // ensure folder
                         sh """
                         ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} \
                         "mkdir -p ${srv.path}/proxy"
                         """
 
-                        // docker-compose
                         sh """
                         scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/docker/docker-compose.yml \
                         ubuntu@${srv.ip}:${srv.path}/
                         """
 
-                        // nginx config
                         sh """
                         scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/proxy/nginx.conf \
                         ubuntu@${srv.ip}:${srv.path}/proxy/
                         """
 
-                        // monitoring only VM1
                         if (srv.monitoring) {
                             sh """
                             scp -i $KEY -o StrictHostKeyChecking=no ${WORKSPACE}/monitoring/docker-compose.monitor.yml \
@@ -74,7 +71,7 @@ pipeline {
             }
         }
 
-        stage('Deploy Zero Downtime') {
+        stage('Deploy Zero Downtime + Health Check + Rollback') {
             steps {
                 script {
 
@@ -85,53 +82,97 @@ pipeline {
 
                     for (srv in servers) {
 
-                        // 🔻 Disable dari HAProxy
                         echo "=== Disable ${srv.name} from HAProxy ==="
                         sh """
                         ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${VM_HA} \
                         "echo 'disable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                         """
 
-                        sleep 5
+                        // Simpan image sebelumnya
+                        echo "=== Backup current image (${srv.name}) ==="
+                        sh """
+                        ssh -i $KEY ubuntu@${srv.ip} "
+                        docker tag ${REGISTRY}/${IMAGE}:latest ${PREV_IMAGE} || true
+                        "
+                        """
 
-                        // 🚀 Deploy
                         echo "=== Deploy ${srv.name} ==="
-                        if (srv.monitoring) {
+                        try {
+
+                            if (srv.monitoring) {
+                                sh """
+                                ssh -i $KEY ubuntu@${srv.ip} "
+                                cd ${srv.path} &&
+                                sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
+                                docker image prune -af &&
+                                docker-compose pull &&
+                                docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
+                                "
+                                """
+                            } else {
+                                sh """
+                                ssh -i $KEY ubuntu@${srv.ip} "
+                                cd ${srv.path} &&
+                                sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
+                                docker image prune -af &&
+                                docker-compose pull &&
+                                docker-compose up -d --remove-orphans
+                                "
+                                """
+                            }
+
+                            // 🔍 HEALTH CHECK (retry 10x)
+                            echo "=== Health Check ${srv.name} ==="
+                            def healthy = false
+
+                            for (int i = 0; i < 10; i++) {
+                                def status = sh(
+                                    script: "ssh -i $KEY ubuntu@${srv.ip} \"curl -s -o /dev/null -w '%{http_code}' http://localhost\"",
+                                    returnStdout: true
+                                ).trim()
+
+                                if (status == "200") {
+                                    healthy = true
+                                    break
+                                }
+
+                                sleep 3
+                            }
+
+                            if (!healthy) {
+                                error("Health check FAILED on ${srv.name}")
+                            }
+
+                            echo "=== Enable ${srv.name} back ==="
                             sh """
-                            ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} "
-                            cd ${srv.path} &&
-                            sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
-                            docker-compose pull &&
-                            docker image prune -af &&
-                            docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
-                            "
+                            ssh -i $KEY ubuntu@${VM_HA} \
+                            "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                             """
-                        } else {
+
+                        } catch (err) {
+
+                            echo "❌ ERROR on ${srv.name}, starting rollback..."
+
+                            // 🔁 ROLLBACK
                             sh """
-                            ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${srv.ip} "
+                            ssh -i $KEY ubuntu@${srv.ip} "
                             cd ${srv.path} &&
-                            sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
-                            docker-compose pull &&
-                            docker image prune -af &&
+                            sed -i 's|image:.*|image: ${PREV_IMAGE}|' docker-compose.yml &&
                             docker-compose up -d --remove-orphans
                             "
                             """
+
+                            // tetap enable biar service hidup
+                            sh """
+                            ssh -i $KEY ubuntu@${VM_HA} \
+                            "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
+                            """
+
+                            error("Rollback executed on ${srv.name}")
                         }
-
-                        sleep 5
-
-                        // 🔼 Enable kembali ke HAProxy
-                        echo "=== Enable ${srv.name} back ==="
-                        sh """
-                        ssh -i $KEY -o StrictHostKeyChecking=no ubuntu@${VM_HA} \
-                        "echo 'enable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
-                        """
-
-                        sleep 5
                     }
                 }
             }
         }
-
     }
 }
