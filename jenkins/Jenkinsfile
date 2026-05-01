@@ -1,7 +1,3 @@
-pipeline {
-agent any
-
-```
 environment {
     REGISTRY = "10.0.2.13:5000"
     IMAGE = "app-iky"
@@ -92,7 +88,4 @@ stages {
             }
         }
     }
-}
-```
-
 }
