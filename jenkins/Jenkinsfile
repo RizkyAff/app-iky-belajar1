@@ -89,7 +89,7 @@ pipeline {
                         "echo 'disable server app_servers/${srv.name}' | sudo socat stdio /run/haproxy/admin.sock"
                         """
 
-                        // 🔁 Backup image
+                        // 🔁 Backup image (aman)
                         echo "=== Backup image (${srv.name}) ==="
                         sh """
                         ssh -i $KEY ubuntu@${srv.ip} "
@@ -99,7 +99,7 @@ pipeline {
                         "
                         """
 
-                        // 🚀 Deploy (tanpa health check kompleks)
+                        // 🚀 Deploy (AMAN)
                         echo "=== Deploy ${srv.name} ==="
                         if (srv.monitoring) {
                             sh """
@@ -107,7 +107,7 @@ pipeline {
                             cd ${srv.path} &&
                             sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
                             docker-compose pull &&
-                            docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d --remove-orphans
+                            docker-compose -f docker-compose.yml -f docker-compose.monitor.yml up -d
                             "
                             """
                         } else {
@@ -116,12 +116,12 @@ pipeline {
                             cd ${srv.path} &&
                             sed -i 's|image:.*|image: ${FULL_IMAGE}|' docker-compose.yml &&
                             docker-compose pull &&
-                            docker-compose up -d --remove-orphans
+                            docker-compose up -d
                             "
                             """
                         }
 
-                        // ⏳ Delay sederhana (AMAN)
+                        // ⏳ Delay sederhana (cukup)
                         sleep 10
 
                         // 🔼 Enable kembali
